@@ -66,6 +66,7 @@
   /* ---------- Board ---------- */
 
   .board {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(3, 96px);
     grid-template-rows: repeat(3, 96px);
@@ -92,6 +93,44 @@
     75%  {             transform: translateY(-10px)  rotateX(12deg); }
     90%  {             transform: translateY(4px)    rotateX(12deg); }
     100% { opacity: 1; transform: translateY(0)      rotateX(12deg); }
+  }
+
+  /* Laser-hit vibration: the grid rattles while the winning stripe burns
+     through. rotateX(12deg) is repeated in every frame so the tilt holds. */
+  .board.shake {
+    animation: boardShake 0.55s linear;
+  }
+
+  @keyframes boardShake {
+    0%, 100% { transform: rotateX(12deg) translate(0, 0); }
+    8%   { transform: rotateX(12deg) translate(-5px, 2px) rotate(-0.8deg); }
+    16%  { transform: rotateX(12deg) translate(5px, -3px) rotate(0.8deg); }
+    24%  { transform: rotateX(12deg) translate(-4px, -2px) rotate(-0.6deg); }
+    32%  { transform: rotateX(12deg) translate(4px, 3px)  rotate(0.6deg); }
+    42%  { transform: rotateX(12deg) translate(-3px, 1px) rotate(-0.4deg); }
+    52%  { transform: rotateX(12deg) translate(3px, -2px) rotate(0.4deg); }
+    64%  { transform: rotateX(12deg) translate(-2px, 1px) rotate(-0.25deg); }
+    78%  { transform: rotateX(12deg) translate(2px, -1px) rotate(0.25deg); }
+    90%  { transform: rotateX(12deg) translate(-1px, 0)   rotate(0deg); }
+  }
+
+  /* Winning-line laser overlay, drawn inside the tilted board */
+  .laser {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  /* Full-viewport confetti layer */
+  .confetti-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
   }
 
   .cell {
@@ -449,35 +488,205 @@
     cells[i].innerHTML = turn === 'X' ? xMark() : oMark();
     cells[i].disabled = true;
 
-    var winner = getWinner();
-    if (winner) {
+    var win = getWin();
+    if (win) {
       gameOver = true;
-      setStatus('Player ' + playerSpan(winner) + ' wins!');
-      endGame();
+      setStatus('Player ' + playerSpan(win.player) + ' wins!');
+      lockCells();
+      // Laser strikes through the winning set while the grid vibrates,
+      // then confetti bursts in the winner's colour, then the buttons rise.
+      fireLaser(win.player, win.line);
+      shakeBoard();
+      setTimeout(function () { launchConfetti(win.player); }, 300);
+      setTimeout(showEndActions, 1100);
     } else if (board.every(function (v) { return v; })) {
       gameOver = true;
       setStatus('It&rsquo;s a draw');
-      endGame();
+      lockCells();
+      setTimeout(showEndActions, 250);
     } else {
       turn = turn === 'X' ? 'O' : 'X';
       setStatus('Player ' + playerSpan(turn) + '&rsquo;s turn');
     }
   }
 
-  function getWinner() {
+  function getWin() {
     for (var w = 0; w < WINS.length; w++) {
       var a = WINS[w][0], b = WINS[w][1], c = WINS[w][2];
       if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return board[a];
+        return { player: board[a], line: WINS[w] };
       }
     }
     return null;
   }
 
-  function endGame() {
+  function lockCells() {
     cells.forEach(function (c) { c.disabled = true; });
+  }
+
+  function showEndActions() {
     wheelBtn.classList.remove('hidden');
     showActions();
+  }
+
+  /* ---------- Win effects: laser, shake, confetti ---------- */
+
+  function shakeBoard() {
+    boardEl.classList.remove('drop', 'shake');
+    void boardEl.offsetWidth;
+    boardEl.classList.add('shake');
+  }
+
+  function fireLaser(winner, line) {
+    var color = PALETTE[chosen[winner]].main;
+    var NS = 'http://www.w3.org/2000/svg';
+
+    // Cell centres in the board's (pre-transform) layout space
+    var pts = line.map(function (i) {
+      var c = cells[i];
+      return {
+        x: c.offsetLeft + c.offsetWidth / 2,
+        y: c.offsetTop + c.offsetHeight / 2
+      };
+    });
+    var p0 = pts[0], p2 = pts[2];
+    var dx = p2.x - p0.x, dy = p2.y - p0.y;
+    var span = Math.sqrt(dx * dx + dy * dy);
+    var ux = dx / span, uy = dy / span;
+    var ext = 30; // overshoot past the outer cells for a full slash
+    var x1 = p0.x - ux * ext, y1 = p0.y - uy * ext;
+    var x2 = p2.x + ux * ext, y2 = p2.y + uy * ext;
+    var len = span + ext * 2;
+
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'laser');
+    svg.setAttribute('viewBox', '0 0 ' + boardEl.clientWidth + ' ' + boardEl.clientHeight);
+
+    function beamLine(width, stroke, opacity, blur) {
+      var l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+      l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      l.setAttribute('stroke', stroke);
+      l.setAttribute('stroke-width', width);
+      l.setAttribute('stroke-linecap', 'round');
+      l.setAttribute('opacity', opacity);
+      if (blur) l.style.filter = 'blur(' + blur + 'px)';
+      l.style.strokeDasharray = len;
+      l.style.strokeDashoffset = len;
+      svg.appendChild(l);
+      return l;
+    }
+
+    var glow = beamLine(14, color, 0.6, 4);  // coloured halo
+    var core = beamLine(5, '#fff', 0.95, 0); // white-hot core
+
+    // Spark travelling at the beam tip
+    var spark = document.createElementNS(NS, 'circle');
+    spark.setAttribute('r', 5);
+    spark.setAttribute('fill', '#fff');
+    spark.style.filter = 'drop-shadow(0 0 8px ' + color + ')';
+    spark.style.transform = 'translate(' + x1 + 'px,' + y1 + 'px)';
+    svg.appendChild(spark);
+
+    boardEl.appendChild(svg);
+
+    var D = 350; // beam draw time
+    [glow, core].forEach(function (l) {
+      l.animate(
+        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        { duration: D, easing: 'ease-in', fill: 'forwards' }
+      );
+    });
+    spark.animate(
+      [
+        { transform: 'translate(' + x1 + 'px,' + y1 + 'px)' },
+        { transform: 'translate(' + x2 + 'px,' + y2 + 'px)' }
+      ],
+      { duration: D, easing: 'ease-in', fill: 'forwards' }
+    );
+    spark.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: 250, delay: D, fill: 'forwards' }
+    );
+
+    // Unstable afterglow flicker once the cut lands
+    glow.animate(
+      [{ opacity: 0.6 }, { opacity: 1 }, { opacity: 0.45 },
+       { opacity: 0.95 }, { opacity: 0.65 }],
+      { duration: 450, delay: D, fill: 'forwards' }
+    );
+    core.animate(
+      [{ opacity: 0.95 }, { opacity: 0.55 }, { opacity: 1 }, { opacity: 0.85 }],
+      { duration: 450, delay: D, fill: 'forwards' }
+    );
+  }
+
+  function mixWithWhite(hex, t) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    r = Math.round(r + (255 - r) * t);
+    g = Math.round(g + (255 - g) * t);
+    b = Math.round(b + (255 - b) * t);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function launchConfetti(winner) {
+    var pal = PALETTE[chosen[winner]];
+    var shades = [pal.main, pal.dark, mixWithWhite(pal.main, 0.45)];
+
+    var canvas = document.createElement('canvas');
+    canvas.className = 'confetti-canvas';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    var ctx = canvas.getContext('2d');
+
+    var parts = [];
+    function burst(fromLeft) {
+      var x0 = fromLeft ? -10 : canvas.width + 10;
+      for (var i = 0; i < 42; i++) {
+        parts.push({
+          x: x0,
+          y: canvas.height * 0.62 + (Math.random() - 0.5) * 80,
+          vx: (4 + Math.random() * 9) * (fromLeft ? 1 : -1),
+          vy: -(4 + Math.random() * 8),
+          w: 5 + Math.random() * 5,
+          h: 8 + Math.random() * 6,
+          rot: Math.random() * Math.PI,
+          vr: (Math.random() - 0.5) * 0.3,
+          color: shades[(Math.random() * shades.length) | 0],
+          life: 0,
+          ttl: 90 + Math.random() * 60
+        });
+      }
+    }
+    burst(true);  // from the left
+    burst(false); // from the right
+
+    function tick() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var alive = false;
+      parts.forEach(function (p) {
+        if (p.life >= p.ttl) return;
+        alive = true;
+        p.life++;
+        p.vy += 0.22;  // gravity
+        p.vx *= 0.985; // air drag
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (p.ttl - p.life) / 30);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      if (alive) requestAnimationFrame(tick);
+      else canvas.remove();
+    }
+    requestAnimationFrame(tick);
   }
 
   /* ---------- Action row ---------- */
