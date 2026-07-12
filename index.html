@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --grid: #334155;
+    --accent: #22c55e;
+    --accent-dark: #15803d;
+    --text: #e2e8f0;
+    --x-main: #38bdf8;
+    --x-dark: #0369a1;
+    --o-main: #f472b6;
+    --o-dark: #be185d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  /* Perspective is scoped to the game card (not body) so the tilted
+     board's paint layer can never overlap UI outside its own stacking
+     context and block clicks. */
+  .game {
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 32px 40px 40px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    perspective: 900px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+
+  h1 .x { color: var(--x-main); }
+  h1 .o { color: var(--o-main); }
+
+  .status {
+    min-height: 1.5em;
+    margin-bottom: 20px;
+    font-size: 1.05rem;
+    color: #94a3b8;
+  }
+
+  .status .px { color: var(--x-main); font-weight: 700; }
+  .status .po { color: var(--o-main); font-weight: 700; }
+
+  .hidden { display: none !important; }
+
+  /* ---------- Board ---------- */
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 96px);
+    grid-template-rows: repeat(3, 96px);
+    gap: 8px;
+    padding: 10px;
+    background: var(--grid);
+    border-radius: 18px;
+    margin: 0 auto 30px;
+    width: max-content;
+    transform: rotateX(12deg);
+    transform-style: preserve-3d;
+    box-shadow:
+      0 10px 0 #1e293b,
+      0 22px 30px rgba(0, 0, 0, 0.55);
+  }
+
+  .board.drop {
+    animation: boardDrop 0.8s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+  }
+
+  @keyframes boardDrop {
+    0%   { opacity: 0; transform: translateY(-280px) rotateX(12deg); }
+    55%  { opacity: 1; transform: translateY(16px)   rotateX(12deg); }
+    75%  {             transform: translateY(-10px)  rotateX(12deg); }
+    90%  {             transform: translateY(4px)    rotateX(12deg); }
+    100% { opacity: 1; transform: translateY(0)      rotateX(12deg); }
+  }
+
+  .cell {
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(160deg, #26334d, #1a2438);
+    cursor: pointer;
+    padding: 14px;
+    /* Extruded 3D depth: darker offset layers below-right */
+    box-shadow:
+      3px 3px 0 #0d1526,
+      6px 6px 0 #0a101f,
+      9px 9px 16px rgba(0, 0, 0, 0.5);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  }
+
+  .cell:hover:not(:disabled):empty {
+    filter: brightness(1.2);
+    transform: translateY(-2px);
+  }
+
+  .cell:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow:
+      1px 1px 0 #0d1526,
+      3px 3px 0 #0a101f,
+      5px 5px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  .cell:disabled { cursor: default; }
+
+  .cell.pop {
+    animation: cellPop 0.4s cubic-bezier(0.3, 1.4, 0.5, 1) backwards;
+  }
+
+  @keyframes cellPop {
+    0%   { opacity: 0; transform: scale(0); }
+    70%  { opacity: 1; transform: scale(1.12); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .cell svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    animation: markIn 0.18s ease-out;
+  }
+
+  @keyframes markIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  /* ---------- Action row (New Game + colour wheel) ---------- */
+
+  /* position/z-index keep the buttons above the tilted board layer */
+  .actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .actions.rise { animation: rowRise 0.4s ease-out both; }
+  .actions.sink { animation: rowSink 0.3s ease-in both; }
+
+  @keyframes rowRise {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes rowSink {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(28px); }
+  }
+
+  .btn {
+    position: relative;
+    z-index: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: inherit;
+    color: #052e16;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--accent-dark), 0 8px 14px rgba(0, 0, 0, 0.4);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  }
+
+  .btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 var(--accent-dark), 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Colour wheel button */
+  .wheel-btn {
+    position: relative;
+    z-index: 1;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 2px solid var(--grid);
+    background: #1a2438;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 0 #0a101f, 0 8px 14px rgba(0, 0, 0, 0.4);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .wheel-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #0a101f, 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .wheel-btn svg { width: 26px; height: 26px; }
+
+  .wheel-btn:hover svg { animation: wheelSpin 0.7s ease-in-out; }
+
+  @keyframes wheelSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .wheel-btn .tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    border: 1px solid var(--grid);
+    color: var(--text);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .wheel-btn:hover .tooltip { opacity: 1; }
+
+  /* ---------- Colour picker ---------- */
+
+  .picker {
+    margin-bottom: 30px;
+  }
+
+  .picker.in  { animation: pickerIn 0.35s ease-out both; }
+  .picker.out { animation: pickerOut 0.3s ease-in both; }
+
+  @keyframes pickerIn {
+    from { opacity: 0; transform: translateX(70px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes pickerOut {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(-70px); }
+  }
+
+  .picker h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 18px;
+    color: #cbd5e1;
+  }
+
+  .swatches {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .swatch {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--sw-dark), 0 8px 12px rgba(0, 0, 0, 0.4);
+    transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .swatch:hover:not(:disabled) { transform: translateY(-3px); }
+
+  .swatch.selected {
+    border-color: #fff;
+    transform: translateY(-3px) scale(1.08);
+  }
+
+  .swatch:disabled {
+    filter: grayscale(1);
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+
+<div class="game">
+  <h1>Tic <span class="x">Tac</span> <span class="o">Toe</span></h1>
+  <p class="status" id="status"></p>
+
+  <div class="picker hidden" id="picker">
+    <h2 id="pickerTitle"></h2>
+    <div class="swatches" id="swatches"></div>
+    <button class="btn" id="confirmBtn">Confirm</button>
+  </div>
+
+  <div class="board hidden" id="board"></div>
+
+  <div class="actions" id="actions">
+    <button class="btn" id="newGameBtn">New Game</button>
+    <button class="wheel-btn hidden" id="wheelBtn" aria-label="Change colours">
+      <span class="tooltip">Change colours</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 12 L12 2 A10 10 0 0 1 20.66 7 Z" fill="#f87171"/>
+        <path d="M12 12 L20.66 7 A10 10 0 0 1 20.66 17 Z" fill="#fbbf24"/>
+        <path d="M12 12 L20.66 17 A10 10 0 0 1 12 22 Z" fill="#a3e635"/>
+        <path d="M12 12 L12 22 A10 10 0 0 1 3.34 17 Z" fill="#38bdf8"/>
+        <path d="M12 12 L3.34 17 A10 10 0 0 1 3.34 7 Z" fill="#a78bfa"/>
+        <path d="M12 12 L3.34 7 A10 10 0 0 1 12 2 Z" fill="#f472b6"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PALETTE = [
+    { name: 'Sky blue', main: '#38bdf8', dark: '#0369a1' },
+    { name: 'Pink',     main: '#f472b6', dark: '#be185d' },
+    { name: 'Lime',     main: '#a3e635', dark: '#4d7c0f' },
+    { name: 'Amber',    main: '#fbbf24', dark: '#b45309' },
+    { name: 'Violet',   main: '#a78bfa', dark: '#6d28d9' }
+  ];
+
+  var WINS = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
+
+  var boardEl   = document.getElementById('board');
+  var statusEl  = document.getElementById('status');
+  var actionsEl = document.getElementById('actions');
+  var newGameBtn = document.getElementById('newGameBtn');
+  var wheelBtn   = document.getElementById('wheelBtn');
+  var pickerEl   = document.getElementById('picker');
+  var pickerTitle = document.getElementById('pickerTitle');
+  var swatchesEl  = document.getElementById('swatches');
+  var confirmBtn  = document.getElementById('confirmBtn');
+
+  var cells = [];
+  var board = [];
+  var turn = 'X';
+  var gameOver = false;
+
+  // Chosen palette indices; null until the first picker flow completes.
+  var chosen = { X: null, O: null };
+  var colorsChosen = false;
+
+  // Picker flow state
+  var pickStage = 'X';
+  var pickSel = { X: null, O: null };
+
+  /* ---------- SVG marks ---------- */
+
+  function xMark() {
+    return '<svg viewBox="0 0 50 50" aria-hidden="true">' +
+      '<g fill="none" stroke-linecap="round">' +
+      // Darker offset bars behind, for 3D depth
+      '<g stroke="var(--x-dark)" stroke-width="9" transform="translate(3,3)">' +
+      '<path d="M13 13 L37 37"/><path d="M37 13 L13 37"/></g>' +
+      // Main bars
+      '<g stroke="var(--x-main)" stroke-width="9">' +
+      '<path d="M13 13 L37 37"/><path d="M37 13 L13 37"/></g>' +
+      // Diagonal glint along the top-left arm of the \ bar
+      '<path d="M16 16 L34 34" stroke="#fff" stroke-width="2.4" opacity="0.65" ' +
+      'transform="translate(-2.2,-2.2)"/>' +
+      '</g></svg>';
+  }
+
+  function oMark() {
+    return '<svg viewBox="0 0 50 50" aria-hidden="true">' +
+      '<g fill="none">' +
+      // Darker offset ring behind, for 3D depth
+      '<circle cx="28" cy="28" r="13" stroke="var(--o-dark)" stroke-width="9"/>' +
+      // Main ring
+      '<circle cx="25" cy="25" r="13" stroke="var(--o-main)" stroke-width="9"/>' +
+      // Arc glint at the top-left of the ring
+      '<path d="M13.2 19.5 A 13 13 0 0 1 19.5 13.2" stroke="#fff" ' +
+      'stroke-width="2.4" opacity="0.65" transform="translate(-1.6,-1.6)"/>' +
+      '</g></svg>';
+  }
+
+  /* ---------- Status line ---------- */
+
+  function playerSpan(p) {
+    return '<span class="' + (p === 'X' ? 'px' : 'po') + '">' + p + '</span>';
+  }
+
+  function setStatus(html) { statusEl.innerHTML = html; }
+
+  /* ---------- Board ---------- */
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    cells = [];
+    for (var i = 0; i < 9; i++) {
+      var cell = document.createElement('button');
+      cell.className = 'cell pop';
+      cell.style.animationDelay = (0.25 + i * 0.06) + 's';
+      cell.dataset.index = i;
+      cell.addEventListener('click', onCellClick);
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    }
+  }
+
+  function launchBoard() {
+    board = ['', '', '', '', '', '', '', '', ''];
+    turn = 'X';
+    gameOver = false;
+    buildBoard();
+
+    boardEl.classList.remove('hidden');
+    boardEl.classList.remove('drop');
+    void boardEl.offsetWidth; // restart the drop animation
+    boardEl.classList.add('drop');
+
+    setStatus('Player ' + playerSpan(turn) + '&rsquo;s turn');
+  }
+
+  function onCellClick(e) {
+    var i = +e.currentTarget.dataset.index;
+    if (gameOver || board[i]) return;
+
+    board[i] = turn;
+    cells[i].innerHTML = turn === 'X' ? xMark() : oMark();
+    cells[i].disabled = true;
+
+    var winner = getWinner();
+    if (winner) {
+      gameOver = true;
+      setStatus('Player ' + playerSpan(winner) + ' wins!');
+      endGame();
+    } else if (board.every(function (v) { return v; })) {
+      gameOver = true;
+      setStatus('It&rsquo;s a draw');
+      endGame();
+    } else {
+      turn = turn === 'X' ? 'O' : 'X';
+      setStatus('Player ' + playerSpan(turn) + '&rsquo;s turn');
+    }
+  }
+
+  function getWinner() {
+    for (var w = 0; w < WINS.length; w++) {
+      var a = WINS[w][0], b = WINS[w][1], c = WINS[w][2];
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return board[a];
+      }
+    }
+    return null;
+  }
+
+  function endGame() {
+    cells.forEach(function (c) { c.disabled = true; });
+    wheelBtn.classList.remove('hidden');
+    showActions();
+  }
+
+  /* ---------- Action row ---------- */
+
+  function showActions() {
+    actionsEl.classList.remove('hidden', 'sink');
+    void actionsEl.offsetWidth;
+    actionsEl.classList.add('rise');
+  }
+
+  function sinkActions(done) {
+    actionsEl.classList.remove('rise');
+    void actionsEl.offsetWidth;
+    actionsEl.classList.add('sink');
+    setTimeout(function () {
+      actionsEl.classList.add('hidden');
+      actionsEl.classList.remove('sink');
+      done();
+    }, 300);
+  }
+
+  newGameBtn.addEventListener('click', function () {
+    sinkActions(function () {
+      if (colorsChosen) {
+        launchBoard();
+      } else {
+        openPicker();
+      }
+    });
+  });
+
+  wheelBtn.addEventListener('click', function () {
+    sinkActions(function () {
+      openPicker();
+    });
+  });
+
+  /* ---------- Colour picker ---------- */
+
+  function openPicker() {
+    pickStage = 'X';
+    // Pre-select previous colours so they can be kept or changed
+    pickSel.X = chosen.X;
+    pickSel.O = chosen.O;
+
+    boardEl.classList.add('hidden');
+    setStatus('');
+    renderPicker();
+
+    pickerEl.classList.remove('hidden', 'out');
+    void pickerEl.offsetWidth;
+    pickerEl.classList.add('in');
+  }
+
+  function renderPicker() {
+    pickerTitle.innerHTML = 'Player ' + playerSpan(pickStage) + ' &mdash; pick a colour';
+
+    swatchesEl.innerHTML = '';
+    PALETTE.forEach(function (col, i) {
+      var sw = document.createElement('button');
+      sw.className = 'swatch';
+      sw.title = col.name;
+      sw.setAttribute('aria-label', col.name);
+      sw.style.background = col.main;
+      sw.style.setProperty('--sw-dark', col.dark);
+
+      // The other player's colour is greyed out and disabled
+      if (pickStage === 'O' && i === pickSel.X) {
+        sw.disabled = true;
+      }
+      if (pickSel[pickStage] === i && !sw.disabled) {
+        sw.classList.add('selected');
+      }
+
+      sw.addEventListener('click', function () {
+        pickSel[pickStage] = i;
+        renderPicker();
+      });
+      swatchesEl.appendChild(sw);
+    });
+
+    confirmBtn.disabled = pickSel[pickStage] === null;
+  }
+
+  function slidePickerStage(next) {
+    pickerEl.classList.remove('in');
+    void pickerEl.offsetWidth;
+    pickerEl.classList.add('out');
+    // setTimeout (not animationend) so the callback can never silently fail
+    setTimeout(function () {
+      pickerEl.classList.remove('out');
+      next();
+      pickerEl.classList.remove('hidden');
+      void pickerEl.offsetWidth;
+      pickerEl.classList.add('in');
+    }, 300);
+  }
+
+  confirmBtn.addEventListener('click', function () {
+    if (pickSel[pickStage] === null) return;
+
+    if (pickStage === 'X') {
+      // If O's pre-selection now collides with X's pick, clear it
+      if (pickSel.O === pickSel.X) pickSel.O = null;
+      slidePickerStage(function () {
+        pickStage = 'O';
+        renderPicker();
+      });
+    } else {
+      chosen.X = pickSel.X;
+      chosen.O = pickSel.O;
+      colorsChosen = true;
+      applyColors();
+      closePicker(launchBoard);
+    }
+  });
+
+  function closePicker(done) {
+    pickerEl.classList.remove('in');
+    void pickerEl.offsetWidth;
+    pickerEl.classList.add('out');
+    // setTimeout (not animationend) so the callback can never silently fail
+    setTimeout(function () {
+      pickerEl.classList.add('hidden');
+      pickerEl.classList.remove('out');
+      done();
+    }, 300);
+  }
+
+  function applyColors() {
+    var root = document.documentElement.style;
+    root.setProperty('--x-main', PALETTE[chosen.X].main);
+    root.setProperty('--x-dark', PALETTE[chosen.X].dark);
+    root.setProperty('--o-main', PALETTE[chosen.O].main);
+    root.setProperty('--o-dark', PALETTE[chosen.O].dark);
+  }
+
+  /* ---------- First load: only the New Game button is shown ---------- */
+
+  boardEl.classList.add('hidden');
+  pickerEl.classList.add('hidden');
+  wheelBtn.classList.add('hidden');
+  setStatus('');
+})();
+</script>
+
+</body>
+</html>
