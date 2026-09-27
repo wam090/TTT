@@ -1,6 +1,6 @@
 # T-002: Release: publish `dev` to GitHub `main`
 
-Status: READY
+Status: BLOCKED
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: S
 
 ## Goal
