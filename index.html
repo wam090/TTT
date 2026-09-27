@@ -565,7 +565,8 @@
   var turn = 'X';
   var gameOver = false;
 
-  // Chosen palette indices; null until the first picker flow completes.
+  // Chosen palette indices; null until colours are picked or restored from
+  // storage by loadSettings().
   var chosen = { X: null, O: null };
   var colorsChosen = false;
 
@@ -574,8 +575,8 @@
   var pickStage = 'X';
   var pickSel = { X: null, O: null };
 
-  // Game mode, in memory only: '2p' (same device) or 'ai' (vs AI); null
-  // until the Mode step is first used.
+  // Game mode: '2p' (same device) or 'ai' (vs AI); null until chosen in the
+  // Mode step or restored from storage by loadSettings().
   var mode = null;
   var difficulty = null; // 'easy' | 'medium' | 'hard'
 
@@ -1138,7 +1139,7 @@
   }
 
   // Last step of the new-game flow: pick colours if none were chosen this
-  // session, otherwise go straight to the board.
+  // session or restored from storage, otherwise go straight to the board.
   function finishModeSteps() {
     if (colorsChosen) {
       closePicker(launchBoard);
