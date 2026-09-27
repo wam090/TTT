@@ -2,8 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Tic Tac Toe</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tic Tac Toe">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>
+  // The manifest link is only added over http(s). Opened as a local file,
+  // Chrome can't fetch a manifest (it logs a CORS error) and nothing there
+  // can be installed anyway.
+  if (/^https?:$/.test(location.protocol)) {
+    (function () {
+      var link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = 'manifest.webmanifest';
+      document.head.appendChild(link);
+    })();
+  }
+</script>
 <style>
   :root {
     --bg: #0f172a;
@@ -20,14 +39,34 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* Feel like an app, not a web page: no double-tap zoom, no grey flash
+     on tap, no rubber-band bounce of the whole page. */
+  html {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
   body {
+    /* dvh is the visible height, so Safari's toolbars can't force a scroll */
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--bg);
     color: var(--text);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Full screen on iPhone: keep clear of the notch / Dynamic Island and
+       the home indicator (all zero on screens without them) */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    touch-action: manipulation;
+    overscroll-behavior: none;
+    /* No text selection or long-press callout */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   /* Perspective is scoped to the game card (not body) so the tilted
@@ -214,6 +253,7 @@
     z-index: 1;
     border: none;
     border-radius: 12px;
+    min-height: 44px; /* Apple's minimum tap target */
     padding: 12px 28px;
     font-size: 1rem;
     font-weight: 700;
@@ -375,7 +415,10 @@
   }
 
   .back-btn {
-    margin-top: 18px;
+    /* 44 px tall to be easy to tap; the smaller margin keeps the text
+       where it was */
+    min-height: 44px;
+    margin-top: 11px;
     padding: 6px 12px;
     border: none;
     background: none;
@@ -408,6 +451,14 @@
       right: 0;
       transform: none;
     }
+  }
+
+  /* ---------- Reduce Motion ---------- */
+
+  /* With the phone's Reduce Motion setting on, the board doesn't shake
+     (confetti is skipped in JS). Every other animation stays. */
+  @media (prefers-reduced-motion: reduce) {
+    .board.shake { animation: none; }
   }
 </style>
 </head>
@@ -607,6 +658,9 @@
     aiTimer = null;
     endTimer = null;
 
+    // A game only starts with a complete set of choices: remember them
+    saveSettings();
+
     board = ['', '', '', '', '', '', '', '', ''];
     // 2 Players: X always starts. vs AI: the first move alternates.
     turn = mode === 'ai' ? firstMover : 'X';
@@ -646,9 +700,10 @@
       // then confetti bursts in the winner's colour, then the buttons rise.
       fireLaser(win.player, win.line);
       shakeBoard();
-      // Confetti only celebrates a human win, never the AI's. Both later
-      // steps chain on endTimer, so launchBoard() can cancel them.
-      var celebrate = mode !== 'ai' || win.player === HUMAN;
+      // Confetti only celebrates a human win, never the AI's, and is skipped
+      // with Reduce Motion on. Both later steps chain on endTimer, so
+      // launchBoard() can cancel them.
+      var celebrate = (mode !== 'ai' || win.player === HUMAN) && !reduceMotion();
       endTimer = setTimeout(function () {
         if (celebrate) launchConfetti(win.player);
         endTimer = setTimeout(showEndActions, 800);
@@ -686,6 +741,13 @@
   function winText(player) {
     if (mode !== 'ai') return 'Player ' + playerSpan(player) + ' wins!';
     return player === HUMAN ? 'You win!' : 'AI wins';
+  }
+
+  // The phone's Reduce Motion setting, read when it matters so a change
+  // applies straight away
+  function reduceMotion() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   // Takes the board as a parameter so the AI can also run it on the
@@ -1254,12 +1316,68 @@
     root.setProperty('--o-dark', PALETTE[chosen.O].dark);
   }
 
+  /* ---------- Saved settings ---------- */
+
+  // Mode, difficulty and colours survive closing the app. Storage may be
+  // missing or throw (private browsing, some local files, a full disk);
+  // then the game just doesn't remember, as before.
+  var SETTINGS_KEY = 'ttt.settings';
+
+  function saveSettings() {
+    try {
+      window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        mode: mode, difficulty: difficulty, x: chosen.X, o: chosen.O
+      }));
+    } catch (e) { /* can't save: nothing else changes */ }
+  }
+
+  // Anything missing or malformed is ignored, so a bad value can never
+  // break the game
+  function loadSettings() {
+    var saved;
+    try {
+      saved = JSON.parse(window.localStorage.getItem(SETTINGS_KEY));
+    } catch (e) {
+      return;
+    }
+    if (!saved || typeof saved !== 'object') return;
+    if (saved.mode === '2p' || saved.mode === 'ai') mode = saved.mode;
+    if (saved.difficulty === 'easy' || saved.difficulty === 'medium' ||
+        saved.difficulty === 'hard') {
+      difficulty = saved.difficulty;
+    }
+    // Like colours chosen earlier in a session, saved ones skip the picker
+    if (isPaletteIndex(saved.x) && isPaletteIndex(saved.o) && saved.x !== saved.o) {
+      chosen.X = saved.x;
+      chosen.O = saved.o;
+      colorsChosen = true;
+      applyColors();
+    }
+  }
+
+  function isPaletteIndex(i) {
+    return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < PALETTE.length;
+  }
+
+  /* ---------- Offline play ---------- */
+
+  // The service worker keeps the game playable offline after one online
+  // visit. It needs http(s): opened as a local file (or later inside the
+  // native app wrapper) the game simply runs without it.
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .catch(function () { /* offline play is a bonus: carry on without it */ });
+    });
+  }
+
   /* ---------- First load: only the New Game button is shown ---------- */
 
   boardEl.classList.add('hidden');
   pickerEl.classList.add('hidden');
   rematchBtn.classList.add('hidden');
   wheelBtn.classList.add('hidden');
+  loadSettings();
   setStatus('');
 })();
 </script>
