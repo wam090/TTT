@@ -1,6 +1,6 @@
 # T-005: iOS toolchain readiness report (read-only)
 
-Status: READY
+Status: IN REVIEW
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P2 | Size: XS
 
 ## Goal

@@ -1,6 +1,6 @@
 # T-004: iPhone-ready: install to the Home Screen, full screen, offline
 
-Status: READY
+Status: IN REVIEW
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: M
 
 ## Goal
