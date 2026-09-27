@@ -1,6 +1,6 @@
 # T-001: Choose game mode (1 Player vs AI, or 2 Players)
 
-Status: IN REVIEW
+Status: DONE
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: M
 
 ## Goal
@@ -91,3 +91,15 @@ Scoreboard, online play, sound, saving settings across reloads, restart/quit dur
 
 ## Definition of done
 All ACs met and self-tested, commits prefixed `T-001:`, `reports/T-001.md` written, Status set to `IN REVIEW`.
+
+## Review round 1 (2026-09-27): ACCEPTED
+
+Reviewed by the Dev Manager: the full diff (7f16943..41ff891) read line by line, and every criterion re-tested independently in headless Chromium against my own reference implementation.
+
+- AI (AC-10, AC-11, AC-16): all 9,040 positions where the AI is to move (4,520 per mark) × Easy/Medium/Hard. Rule order, tie coverage and uniformity matched my reference exactly. The input board was never mutated and `Math.random` was never touched inside `chooseAIMove`. Full game trees vs Hard: 33,504 games (AI as O and as X, each side starting), 0 human wins. Hard on the empty board: ~4 ms.
+- UI (AC-1 to AC-9, AC-12 to AC-14): 40/41 scripted checks passed. The one miss was my own test timing (confetti counted before its 300 ms delay); the counter confirmed it fired. AI replies were 400–691 ms over 20 samples; AI openings were 1.73–1.76 s. Double-clicks on New Game, Confirm, Rematch and Hard each produced exactly one action. Medium falls for the fork; Hard doesn't.
+- AC-15: Chrome desktop and 375 px phone emulation: no console errors, the page never got wider than 375 px, and the tilted board isn't clipped. Safari and real phones are still untested, so the CEO's play-test in Safari is the gate before release (T-002).
+- Decisions 1–11: accepted as made.
+- Not blocking; carried to T-003: swatch taps during the card's slide-out (your Suggestion 1), an AI reply landing in a cell that is still popping in, end-of-game timers without a handle, and the wheel tooltip clipped on phones.
+
+Clean diff, spec followed, honest report.

@@ -1,0 +1,4 @@
+# Files the Claude desktop app saves into this folder
+Claude outputs/
+# macOS
+.DS_Store

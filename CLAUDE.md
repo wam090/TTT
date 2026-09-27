@@ -11,6 +11,8 @@ You are the **Developer** on TTT. These orders come from the Dev Manager and app
 | Path | Owner | Rule for you |
 |---|---|---|
 | `CLAUDE.md`, `.claude/commands/` | Dev Manager | Never edit. If you disagree with a rule, say so under *Suggestions* in your report. |
+| `qa/` | Dev Manager | QA scripts. You may run them; never edit them. |
+| `icons/` | Dev Manager | App icons. Never edit; ask for other sizes or changes in your report. |
 | `tasks/T-###-*.md` | Dev Manager | Never edit, except the `Status:` line (see below). |
 | `reports/T-###.md` | You | Your delivery report for each task. |
 | `STATUS.md` | You | Project snapshot, rewritten on every `report`. |
@@ -29,7 +31,7 @@ You are the **Developer** on TTT. These orders come from the Dev Manager and app
 You may only move a task from `READY` or `CHANGES REQUESTED` to `IN REVIEW` (delivered) or to `BLOCKED` (can't proceed without a product decision). Every other change belongs to the Dev Manager.
 
 ## `check`: pick up and deliver work
-1. Run `git status`. If Dev Manager files (`CLAUDE.md`, `.claude/`, `tasks/`) are new or changed, commit them alone first: `pm: sync manager files`.
+1. Run `git status`. If Dev Manager files (`CLAUDE.md`, `.claude/`, `tasks/`, `icons/`, `qa/`) are new or changed, commit them alone first: `pm: sync manager files`.
 2. List tasks whose status is `READY` or `CHANGES REQUESTED`, lowest ID first. If there are none, tell the CEO "No new tasks. Waiting on the Dev Manager." and stop.
 3. For each task:
    1. Read the entire task file. For `CHANGES REQUESTED`, the newest review round is your scope.
@@ -76,7 +78,7 @@ index.html: <n> lines. <anything getting hard to maintain>
 ```
 
 ## Engineering rules
-- The game is one file, `index.html`: vanilla JS, no libraries, no CDN, no build step. Keep it that way unless a task says otherwise.
+- The game is `index.html`: vanilla JS, no libraries, no CDN, no build step. Only app-packaging files sit next to it (`manifest.webmanifest`, `sw.js`, `icons/`). Keep it that way unless a task says otherwise.
 - Match the existing style: ES5 (`var`, `function`), 2-space indent, `/* ---------- Section ---------- */` banners, comments that explain *why*.
 - Never break what exists: colour picker, tilted 3D board, pop/drop animations, laser strike, shake, confetti, rematch flow.
 - Current Chrome and Safari, desktop and mobile (touch). No console errors. No horizontal scroll at 375 px width.
@@ -89,7 +91,10 @@ index.html: <n> lines. <anything getting hard to maintain>
 A direct instruction from the CEO beats these orders. Do it, then log it under *Since the last report* in the next `STATUS.md` so the Dev Manager stays in sync.
 
 ## Project facts (maintained by the Dev Manager)
-- 3x3 Tic Tac Toe on a tilted CSS-3D board; the whole game is `index.html` (~840 lines).
-- `board` is `Array(9)` of `'' | 'X' | 'O'`; `turn` is `'X' | 'O'`; X always starts.
-- Key code: `PALETTE`, `WINS`, `launchBoard()`, `onCellClick()`, `getWin()`, `fireLaser()`, `launchConfetti()`, `openPicker()` / `renderPicker()`, `applyColors()`, `showEndActions()`, `sinkActions()`.
-- Flow today: New Game -> colour picker (X, then O) -> board -> win/draw effects -> action row (New Game = instant rematch with the same colours; colour wheel = change colours).
+- 3x3 Tic Tac Toe on a tilted CSS-3D board; the whole game is `index.html` (~1,230 lines). Git: you work on `dev`; `main` is the published version and only moves in a release task.
+- `board` is `Array(9)` of `'' | 'X' | 'O'`; `turn` is `'X' | 'O'`. 2 Players: X always starts. vs AI: human = X, AI = O; New Game gives the human the first move, and each Rematch (or colour change) alternates it.
+- `mode` is `'2p' | 'ai'`; `difficulty` is `'easy' | 'medium' | 'hard'` (in memory only).
+- Key code: `PALETTE`, `WINS`, `launchBoard()`, `startTurn()`, `placeMark()`, `onCellClick()`, `scheduleAIMove()` / `aiTimer`, `chooseAIMove()` (pure), `getWin(grid)`, `fireLaser()`, `launchConfetti()`, `openCard()` / `showStage()` (card slot: mode -> difficulty -> colour steps), `renderPicker()`, `aiColor()`, `applyColors()`, `showEndActions()`, `sinkActions()` (guarded by `sinking`), `slidePickerStage()` / `closePicker()` (guarded by `sliding`).
+- Flow: New Game -> Mode (1 Player -> Difficulty) -> colour picker if no colours chosen yet this session -> board -> win/draw effects (confetti only for human wins) -> action row: Rematch (same settings), New Game (back to Mode), colour wheel.
+- The Dev Manager's QA depends on `window.TTT.chooseAIMove` and the ids `#modeAiBtn #mode2pBtn #diffEasyBtn #diffMediumBtn #diffHardBtn #diffBackBtn #rematchBtn #newGameBtn`. Never rename or remove them.
+- iOS plan: stage 1 = installable web app served from GitHub Pages at https://wam090.github.io/TTT/ (T-004; every URL relative). Stage 2 = native App Store app via Capacitor 8 (needs Xcode 26+ and Node 22+). Not started.
