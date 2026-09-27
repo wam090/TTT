@@ -1,6 +1,6 @@
 # T-006: Final release v3: board drop-in fix, publish to GitHub `main`
 
-Status: READY
+Status: IN REVIEW
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: S
 
 ## Goal
