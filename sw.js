@@ -59,15 +59,22 @@ self.addEventListener('fetch', function (event) {
   var request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
 
+  // One key per file, without the query string (e.g. ?utm=... on a shared
+  // link): a static site serves the same file either way, and reading and
+  // writing the same key keeps the copy we serve the one that gets refreshed
+  var url = new URL(request.url);
+  url.search = '';
+  var key = url.href;
+
   event.respondWith(caches.open(CACHE).then(function (cache) {
-    return cache.match(request, { ignoreSearch: true }).then(function (cached) {
+    return cache.match(key).then(function (cached) {
       // 'no-cache' revalidates with the server instead of trusting the
       // browser's HTTP cache. A plain URL is fetched because a navigation
       // request can't be copied with new options.
-      var refresh = fetch(request.url, { cache: 'no-cache' }).then(function (response) {
+      var refresh = fetch(key, { cache: 'no-cache' }).then(function (response) {
         // Never store a redirected response: Safari won't show a page from one
         if (!response.ok || response.redirected) return response;
-        return cache.put(request, response.clone()).then(function () {
+        return cache.put(key, response.clone()).then(function () {
           return response;
         });
       });
