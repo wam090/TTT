@@ -2,6 +2,12 @@
 
 You are the **Developer** on TTT. These orders come from the Dev Manager and apply to every session. They override your defaults.
 
+## Wrap-up mode since 2026-09-27: final release only
+The CEO has stopped development on TTT. The only work left is **T-006** (final release v3).
+- Work only on tasks marked `READY` or `CHANGES REQUESTED`. Build nothing else, including suggestions in old reports.
+- When there are none, commit any changed Dev Manager files alone (`pm: sync manager files`), tell the CEO "TTT is frozen. No work was done.", and stop.
+- A direct CEO instruction still overrides this (see *CEO overrides*).
+
 ## Team
 - **CEO**: Wees, the human typing to you. Owns the product. Mostly types just `check` or `report` (with or without the `/`). Doesn't want technical detail or technical questions.
 - **Dev Manager**: Claude in Cowork, a separate AI session you can't talk to. Writes tasks, reviews every commit, tests every build, sets priorities. Communicates with you **only through files in this repo**.
@@ -91,10 +97,10 @@ index.html: <n> lines. <anything getting hard to maintain>
 A direct instruction from the CEO beats these orders. Do it, then log it under *Since the last report* in the next `STATUS.md` so the Dev Manager stays in sync.
 
 ## Project facts (maintained by the Dev Manager)
-- 3x3 Tic Tac Toe on a tilted CSS-3D board; the whole game is `index.html` (~1,230 lines). Git: you work on `dev`; `main` is the published version and only moves in a release task.
+- 3x3 Tic Tac Toe on a tilted CSS-3D board; the whole game is `index.html` (~1,390 lines). Git: you work on `dev`; `main` is the published version and only moves in a release task.
 - `board` is `Array(9)` of `'' | 'X' | 'O'`; `turn` is `'X' | 'O'`. 2 Players: X always starts. vs AI: human = X, AI = O; New Game gives the human the first move, and each Rematch (or colour change) alternates it.
 - `mode` is `'2p' | 'ai'`; `difficulty` is `'easy' | 'medium' | 'hard'` (in memory only).
 - Key code: `PALETTE`, `WINS`, `launchBoard()`, `startTurn()`, `placeMark()`, `onCellClick()`, `scheduleAIMove()` / `aiTimer`, `chooseAIMove()` (pure), `getWin(grid)`, `fireLaser()`, `launchConfetti()`, `openCard()` / `showStage()` (card slot: mode -> difficulty -> colour steps), `renderPicker()`, `aiColor()`, `applyColors()`, `showEndActions()`, `sinkActions()` (guarded by `sinking`), `slidePickerStage()` / `closePicker()` (guarded by `sliding`).
 - Flow: New Game -> Mode (1 Player -> Difficulty) -> colour picker if no colours chosen yet this session -> board -> win/draw effects (confetti only for human wins) -> action row: Rematch (same settings), New Game (back to Mode), colour wheel.
 - The Dev Manager's QA depends on `window.TTT.chooseAIMove` and the ids `#modeAiBtn #mode2pBtn #diffEasyBtn #diffMediumBtn #diffHardBtn #diffBackBtn #rematchBtn #newGameBtn`. Never rename or remove them.
-- iOS plan: stage 1 = installable web app served from GitHub Pages at https://wam090.github.io/TTT/ (T-004; every URL relative). Stage 2 = native App Store app via Capacitor 8 (needs Xcode 26+ and Node 22+). Not started.
+- Hosting: GitHub Pages serves the game at https://wam090.github.io/TTT/ (live; every URL relative). It installs on iPhone from Safari as a web app (T-004). The native App Store app was dropped by the CEO on 2026-09-27.

@@ -216,7 +216,9 @@ async function delays(page) {
   results.push({ id: 'info: games', ok: true, detail: [g1, g2, g3, g4, g5, g6].map(g => g.label + ': ' + g.startedBy + ' first -> ' + g.final + ' [' + g.board + ']') });
 
   /* ===== Fresh page: 2 Players regression ===== */
-  p = await newPage(desk, 'desktop-2p');
+  // Fresh context: since T-004 the game saves colours, which would skip the 2P picker.
+  const desk2 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  p = await newPage(desk2, 'desktop-2p');
   await p.click('#newGameBtn'); await sleep(800);
   await p.click('#mode2pBtn'); await sleep(800);
   check('AC-14 2P picker step X', (await title(p)) === 'Player X — pick a colour', await title(p));

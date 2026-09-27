@@ -1,6 +1,6 @@
 # T-003: Polish: small fixes from the T-001 review
 
-Status: IN REVIEW
+Status: DONE
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P2 | Size: S
 
 ## Scope
@@ -12,3 +12,6 @@ Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P2 | Si
 ## Acceptance criteria
 - [ ] AC-1 to AC-4: the four items above.
 - [ ] AC-5 No regressions: every T-001 criterion still holds (the Dev Manager re-runs the T-001 QA).
+
+## Review round 1 (2026-09-27): ACCEPTED
+Dev Manager QA on 5e15c08 (Chromium): AI check 0 failures (9,040 positions per level; 33,504 games vs Hard, 0 human wins); UI check 41/41; no console errors. Safari not tested.

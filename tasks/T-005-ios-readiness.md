@@ -1,6 +1,6 @@
 # T-005: iOS toolchain readiness report (read-only)
 
-Status: IN REVIEW
+Status: DONE
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P2 | Size: XS
 
 ## Goal
@@ -18,3 +18,6 @@ Tell the Dev Manager what this Mac already has for building a native iOS app lat
 ## Acceptance criteria
 - [ ] AC-1 Every item is reported.
 - [ ] AC-2 Nothing was installed, configured or changed.
+
+## Review round 1 (2026-09-27): ACCEPTED
+Every item reported. Stage 2 (native app) will not go ahead: project frozen by the CEO.

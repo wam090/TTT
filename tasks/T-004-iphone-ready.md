@@ -1,6 +1,6 @@
 # T-004: iPhone-ready: install to the Home Screen, full screen, offline
 
-Status: IN REVIEW
+Status: DONE
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: M
 
 ## Goal
@@ -45,3 +45,8 @@ On an iPhone, the game installs from Safari to the Home Screen and then feels li
 
 ## Out of scope: don't build
 The native app / Xcode (stage 2), the App Store listing, sound, haptics (Safari on iPhone can't vibrate), iPad-specific layout, and turning on GitHub Pages (that's part of the next release task).
+
+## Review round 1 (2026-09-27): ACCEPTED
+Dev Manager QA on 5e15c08 (Chromium): UI check 41/41 (`qa/ui-check.js` now opens the 2P flow in a fresh context, because settings are saved); AI check 0 failures.
+AC-3 verified over http: the service worker is active, `ttt-v1` precaches all 6 files, and the game loads and plays offline at `./`, `./?utm=share` and `./index.html`; manifest and icons are served offline; no console errors.
+AC-6 (iPhone safe areas) is left to the CEO's own look after installing. The drop-in bug you found is fixed in T-006.

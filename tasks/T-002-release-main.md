@@ -1,6 +1,6 @@
 # T-002: Release: publish `dev` to GitHub `main`
 
-Status: BLOCKED
+Status: ON HOLD
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: S
 
 ## Goal
@@ -23,3 +23,6 @@ If a push is refused for sign-in or permissions: don't change git config or cred
 
 ## Out of scope
 Tags, GitHub Releases, README, changing the default branch.
+
+## Closed (2026-09-27): superseded by T-006
+The final release (v3) is done in T-006.
