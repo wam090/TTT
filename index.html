@@ -400,6 +400,14 @@
       padding-right: 16px;
       overflow-x: clip;
     }
+
+    /* The wheel ends the row, near the card's edge: anchor its tooltip to
+       the wheel's right edge so the card's clipping can't cut it off */
+    .wheel-btn .tooltip {
+      left: auto;
+      right: 0;
+      transform: none;
+    }
   }
 </style>
 </head>
@@ -472,6 +480,12 @@
   // pop (0.73 s delay + 0.4 s) have played; see buildBoard() and the CSS.
   var ENTRANCE_MS = 1150;
 
+  // Cell pop-in (buildBoard() and .cell.pop): cell i starts popping
+  // CELL_POP_START + i * CELL_POP_STEP ms after launch and takes CELL_POP_MS.
+  var CELL_POP_START = 250;
+  var CELL_POP_STEP = 60;
+  var CELL_POP_MS = 400;
+
   var boardEl   = document.getElementById('board');
   var statusEl  = document.getElementById('status');
   var actionsEl = document.getElementById('actions');
@@ -518,6 +532,11 @@
 
   // The one pending AI move, so launchBoard() can cancel it
   var aiTimer = null;
+  // The pending end-of-game step (confetti, then the action row), on one
+  // handle so launchBoard() can cancel it too
+  var endTimer = null;
+  // Date.now() when the current board launched, to time the cell pop-ins
+  var boardLaunchedAt = 0;
 
   // True while the action row sinks / the card slot slides out: taps are
   // ignored meanwhile, so a double tap can't run a step twice.
@@ -570,7 +589,7 @@
     for (var i = 0; i < 9; i++) {
       var cell = document.createElement('button');
       cell.className = 'cell pop';
-      cell.style.animationDelay = (0.25 + i * 0.06) + 's';
+      cell.style.animationDelay = (CELL_POP_START + i * CELL_POP_STEP) + 'ms';
       cell.dataset.index = i;
       cell.addEventListener('click', onCellClick);
       boardEl.appendChild(cell);
@@ -579,15 +598,19 @@
   }
 
   function launchBoard() {
-    // A pending AI move belongs to the previous game: it must never land here
+    // Pending AI and end-of-game steps belong to the previous game: they
+    // must never land here
     clearTimeout(aiTimer);
+    clearTimeout(endTimer);
     aiTimer = null;
+    endTimer = null;
 
     board = ['', '', '', '', '', '', '', '', ''];
     // 2 Players: X always starts. vs AI: the first move alternates.
     turn = mode === 'ai' ? firstMover : 'X';
     gameOver = false;
     buildBoard();
+    boardLaunchedAt = Date.now();
 
     boardEl.classList.remove('hidden');
     boardEl.classList.remove('drop');
@@ -621,16 +644,18 @@
       // then confetti bursts in the winner's colour, then the buttons rise.
       fireLaser(win.player, win.line);
       shakeBoard();
-      // Confetti only celebrates a human win, never the AI's
-      if (mode !== 'ai' || win.player === HUMAN) {
-        setTimeout(function () { launchConfetti(win.player); }, 300);
-      }
-      setTimeout(showEndActions, 1100);
+      // Confetti only celebrates a human win, never the AI's. Both later
+      // steps chain on endTimer, so launchBoard() can cancel them.
+      var celebrate = mode !== 'ai' || win.player === HUMAN;
+      endTimer = setTimeout(function () {
+        if (celebrate) launchConfetti(win.player);
+        endTimer = setTimeout(showEndActions, 800);
+      }, 300);
     } else if (board.every(function (v) { return v; })) {
       gameOver = true;
       setStatus('It&rsquo;s a draw');
       lockCells();
-      setTimeout(showEndActions, 250);
+      endTimer = setTimeout(showEndActions, 250);
     } else {
       turn = turn === 'X' ? 'O' : 'X';
       startTurn(0);
@@ -692,14 +717,23 @@
 
   function scheduleAIMove(extraDelay) {
     clearTimeout(aiTimer); // never more than one AI move pending
-    // 400-700 ms of "thinking" so the move reads like a player's
-    var delay = extraDelay + 400 + Math.random() * 300;
+    // The board stays locked until the AI moves, so it can choose now
+    var move = chooseAIMove(board, AI, difficulty);
+    // 400-700 ms of "thinking" so the move reads like a player's, but never
+    // before the chosen cell has popped in (the human may move very early)
+    var delay = Math.max(extraDelay + 400 + Math.random() * 300,
+                         cellSettledAt(move) - Date.now());
     aiTimer = setTimeout(function () {
       aiTimer = null;
       // launchBoard() already cancels stale timers; this is belt and braces
       if (gameOver || !isAITurn()) return;
-      placeMark(chooseAIMove(board, AI, difficulty));
+      placeMark(move);
     }, delay);
+  }
+
+  // Date.now() time at which cell i's pop-in has finished
+  function cellSettledAt(i) {
+    return boardLaunchedAt + CELL_POP_START + i * CELL_POP_STEP + CELL_POP_MS;
   }
 
   /* ---------- AI move choice (pure: no DOM, no timers) ---------- */
@@ -1137,6 +1171,8 @@
       }
 
       sw.addEventListener('click', function () {
+        // Ignore taps while the card slides: the pick is already confirmed
+        if (sliding) return;
         pickSel[pickStage] = i;
         renderPicker();
       });
