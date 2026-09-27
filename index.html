@@ -485,6 +485,8 @@
   var CELL_POP_START = 250;
   var CELL_POP_STEP = 60;
   var CELL_POP_MS = 400;
+  // Animations start a frame or two after launch, so allow some slack
+  var CELL_POP_SLACK = 60;
 
   var boardEl   = document.getElementById('board');
   var statusEl  = document.getElementById('status');
@@ -733,7 +735,8 @@
 
   // Date.now() time at which cell i's pop-in has finished
   function cellSettledAt(i) {
-    return boardLaunchedAt + CELL_POP_START + i * CELL_POP_STEP + CELL_POP_MS;
+    return boardLaunchedAt + CELL_POP_START + i * CELL_POP_STEP + CELL_POP_MS +
+      CELL_POP_SLACK;
   }
 
   /* ---------- AI move choice (pure: no DOM, no timers) ---------- */
