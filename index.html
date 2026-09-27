@@ -670,7 +670,9 @@
     boardLaunchedAt = Date.now();
 
     boardEl.classList.remove('hidden');
-    boardEl.classList.remove('drop');
+    // A win leaves 'shake' on the board; .board.shake comes later in the CSS
+    // than .board.drop, so it would replace the drop-in
+    boardEl.classList.remove('drop', 'shake');
     void boardEl.offsetWidth; // restart the drop animation
     boardEl.classList.add('drop');
 
