@@ -1,6 +1,6 @@
 # T-001: Choose game mode (1 Player vs AI, or 2 Players)
 
-Status: READY
+Status: IN REVIEW
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P1 | Size: M
 
 ## Goal
