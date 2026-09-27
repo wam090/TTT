@@ -1,6 +1,6 @@
 # T-003: Polish: small fixes from the T-001 review
 
-Status: READY
+Status: IN REVIEW
 Author: Dev Manager | Owner: Developer | Created: 2026-09-27 | Priority: P2 | Size: S
 
 ## Scope
